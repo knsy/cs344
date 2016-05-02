@@ -1,0 +1,282 @@
+#!/bin/bash
+#  stats
+# Here we will try to write a shell script 
+# for doing some simple statistics on a file.
+
+# lets look at checking how many arguments the command has
+# $$ adds pid, "" expands vars inside of it.
+# set up trap for signals. if all goes unwell, temp files get deleted
+# found some info here: http://www.linuxjournal.com/content/use-bash-trap-statement-cleanup-temporary-files
+trap "rm -f *$$ ; exit 1" INT HUP TERM
+tempfile="tempdata$$"
+#if number of arguments ($#) is 0..
+if [ $# -eq 0 ] 
+then
+# output to stderr. found here: http://stackoverflow.com/questions/2990414/echo-that-outputs-to-stderr 
+   >&2 echo 'Usage: stats {-rows|-cols} [file]'
+   exit 1
+
+# if there is 1 argument passed
+elif [ $# -eq 1 ]
+then
+   cat > "$tempfile" #there was no file passed, so we cat it in.
+
+# if there are 2 arguments passed
+elif [ $# -eq 2 ]
+then
+   tempfile=$2 #we load the second argument in(file path)
+
+# info on file testing found here: http://tldp.org/LDP/abs/html/fto.html
+# we cascade the tests in the order of most deadly to least. 
+# if the file doesn't exist then it is empty.. but not the other was around
+
+# if the file doesn't exist
+   if  ! $( [[ -e $tempfile  ]] )
+   then
+      >&2 echo "stats: file doesn't exist"
+      exit 1
+   fi
+
+# if the file can't be read/written
+   if  ! $( [[ -r $tempfile  ]] )
+   then
+      >&2 echo "stats: can't read file"
+      exit 1
+   fi
+
+
+# if the file is empty then exit with error
+   if  ! $( [[ -s $tempfile  ]] )
+   then
+      exit 1
+   fi
+
+
+# if there are too many arg's
+elif [ $# -ge 3 ]
+then
+   >&2 echo 'Usage: stats {-rows|-cols} [file]' 
+   exit 1
+fi
+#---------------------------------------------------
+
+
+# if rows parameter is passed
+#---------------------------------------------------
+if [[ $1 == -r* ]]
+then
+   # row average calculation
+      echo "Average: Median:" 
+   while read lineRead
+   do
+      lineSum=0
+      numEntries=0
+# initiate a file for the line and clean it up on every loop
+      echo "" > tempLine$$
+
+# make the lineRead items accessible like an array  
+      array=($lineRead)
+      for i in "${array[@]}"
+      do
+# scroll through that array and process each number
+         lineSum=`expr $lineSum + $i`
+         numEntries=$((numEntries+1))
+         echo -e "$i" >> tempLine$$
+      done
+
+# take our file of row items and sort them
+# reverse order because expr floors the result, so this 
+# automatically should give us the bigger value in the reverse
+# sorted list
+      cat tempLine$$ | sort -r > lineSorted$$
+
+# get the index of the median value
+# if there are an even number of entries, we want the bigger one
+      if [[ $((numEntries % 2)) == 0 ]]
+      then
+         lineNum=`expr $numEntries / 2`
+      else
+         lineNum=`expr $numEntries / 2 + 1`
+         
+      fi
+# get the median value based on the sorted line and index
+# found here:http://stackoverflow.com/questions/7996629/how-do-i-read-the-nth-line-of-a-file-and-print-it-to-a-new-file
+
+      lineMedian=`sed -n "${lineNum}{p;q;}" lineSorted$$` # > lineMedian$$
+
+# calculate line average
+# since expr rounds down, we need to prerate the operands
+# how to round found here: http://stackoverflow.com/questions/2395284/round-a-divided-number-in-bash 
+      lineSum=`expr $lineSum + '(' $numEntries / 2 ')' `
+      lineAvg=`expr $lineSum  / $numEntries`
+
+# for testing echo -e "lineSum $lineSum , numEntries $numEntries"
+      echo -e "$lineAvg\t $lineMedian"
+
+   done < $tempfile
+
+#fi
+
+# if columns parameter is passed
+#--------------------------------------------------
+
+elif [[ $1 == -c* ]]
+then
+   # rotate the input file
+   rotateTemp="rotateTemp$$"
+   colDisp="colDisp$$"
+
+# count the number of columns
+# found here: http://stackoverflow.com/questions/5761212/count-number-of-columns-in-bash
+   numCols=`awk '{print NF}' $tempfile | sort -nu | tail -n 1`
+
+# because awk starts from 0 and we need a true number we add a 1
+   numCols=$((numCols+1))
+   currCol=1
+
+   echo -e "Averages:"
+
+until [ $currCol -eq $numCols ]
+do
+# grab the column specified by $currCol and put it into $colTemp
+# found here: http://stackoverflow.com/questions/21227505/bash-read-loop-only-reading-first-line-of-input-variable
+   cut -f $currCol $tempfile > colTemp$$
+
+# initialize the entry counter and accumulator
+   numEntries=0
+   colSum=0
+   
+# turn the column into an array
+# found here: http://stackoverflow.com/questions/30988586/creating-an-array-from-a-text-file-in-bash
+   mapfile -t array2 < colTemp$$
+
+# display average of the line
+   for i in "${array2[@]}"
+   do
+# scroll through the array and add to accumulator      
+      colSum=$(( $colSum + $i ))
+      numEntries=$((numEntries+1))
+   done
+
+# because we want to round the numbers normally we add
+# denominator/2 to our numerator
+# this was helpful in getting a complex expression to work:
+# http://unix.stackexchange.com/questions/149823/parenthesis-in-bash-arithmetic-3-2-1
+   colSum=`expr $colSum + '(' $numEntries / 2 ')' `
+
+# calculate average
+   colAvg=`expr $colSum / $numEntries`
+
+# calc median ----------------------------------------
+# sorting in reverse so that when the division
+# rounds down, we get the bigger value, as per spec
+   cat colTemp$$ | sort -r > colTempSorted$$
+
+# get the number of the median line
+# if there are an even number of entries, we pick the larger one
+      if [[ $((numEntries % 2)) == 0 ]]
+      then
+         lineNum=`expr $numEntries / 2`
+      else
+         lineNum=`expr $numEntries / 2 + 1`
+         
+      fi
+
+# get the median line into file
+   sed -n "${lineNum}{p;q;}" colTempSorted$$ >> colMedian$$
+
+# because we are looping through these and I couldn't 
+# find a nice way to output them as \t-separated values
+# we are dumping them into a file.
+   echo -e "$colAvg" >> $rotateTemp
+   let currCol+=1
+done
+
+# clean up the file with averages and display
+   cat $rotateTemp | tr '\n' '\t' > $colDisp
+   cat $colDisp
+
+# clean up the file with medians and display
+echo ""
+echo "Medians:"
+cat colMedian$$ | tr '\n' '\t' > $colDisp
+cat $colDisp
+
+# if the input is there, but isn't a -r or a -c
+else
+   >&2 echo 'Usage: stats {-rows|-cols} [file]' 
+   exit 1
+fi
+echo ""
+
+
+# clean up when done
+# I think I should have created less temporary files
+#---------------------------------------------------
+if [ -e tempdata$$ ]
+then
+# cleanup the temp file
+   rm -f "tempdata$$"
+fi
+
+if [ -e rotateTemp$$ ]
+then
+# cleanup the temp file
+   rm -f "rotateTemp$$"
+fi
+
+if [ -e colDisp$$ ]
+then
+# cleanup the temp file
+   rm -f "colDisp$$"
+fi
+
+if [ -e colMedian$$ ]
+then
+# cleanup the temp file
+   rm -f "colMedian$$"
+fi
+
+if [ -e colTempSorted$$ ]
+then
+# cleanup the temp file
+   rm -f "colTempSorted$$"
+fi
+
+
+if [ -e lineMedian$$ ]
+then
+# cleanup the temp file
+   rm -f "lineMedian$$"
+fi
+
+
+if [ -e lineReadSorted$$ ]
+then
+# cleanup the temp file
+   rm -f "lineReadSorted$$"
+fi
+
+
+if [ -e lineSorted$$ ]
+then
+# cleanup the temp file
+   rm -f "lineSorted$$"
+fi
+
+
+if [ -e tempLine$$ ]
+then
+# cleanup the temp file
+   rm -f "tempLine$$"
+fi
+
+if [ -e colTemp$$ ]
+then
+# cleanup the temp file
+   rm -f "colTemp$$"
+fi
+
+# holy shit! we actually got to the end of the program
+# so we exit with a nice clean, error-free message.
+exit 0
