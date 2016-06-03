@@ -105,6 +105,12 @@ int main(int argc, char *argv[])
     if (n < 0) 
          error("ERROR reading from socket");
          
+    //if rejected quit.     
+    if (buffer[0] == 'x'){
+		perror("C: can't connect to otp_dec_d");
+		exit(1);
+	}
+         
     //here we have new port in buffer so we close old connection
     ///printf("New port:%s\n",buffer);
     close(sockfd);
@@ -184,7 +190,9 @@ int main(int argc, char *argv[])
 		bytesKey = fread(buffer, 1, bytesRead, keyFile);
 		
 		//on shorter tasks server needs to catchup.
-		sleep(1);
+		//sleep(1);
+		//100, not enough
+		usleep(300);//is in MICRO sec so x1000 to get MILLI sec
        
          //send the key line
 		///printf("C:Key:%s\n",buffer);

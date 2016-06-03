@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
          if (newsockfd < 0) 
              error("ERROR on accept");
          
-         printf("S:newcon Accepted");
+         ///printf("S:newcon Accepted");
          
          //setup new port listener/new socket
         splitPort++;
@@ -104,24 +104,32 @@ int main(int argc, char *argv[])
 		 bzero(buffer,256);
 		 n = read(newsockfd,buffer,255);
 		 if (n < 0) error("ERROR reading from socket");
-		 printf("S:Here is the message: %s\n",buffer);
+		 ///printf("S:Here is the message: %s\n",buffer);
 		 
 		 if(buffer[0] == 'e'){
-		 char portConv[6];
-		 sprintf(portConv, "%d\n", splitPort);
-		 
-		 //send new port
-		 n = write(newsockfd,portConv, strlen(portConv) + 1);
-		 if (n < 0) error("ERROR writing to socket");
-		 
+			 char portConv[6];
+			 sprintf(portConv, "%d\n", splitPort);
+			 
+			 //send new port
+			 n = write(newsockfd,portConv, strlen(portConv) + 1);
+			 if (n < 0) error("ERROR writing to socket");
+			 
 		 } else {
 			 perror("S:Wrong encoding key.");
+			 
+			 //send new port
+			 n = write(newsockfd,"x", 1);
+			 if (n < 0) error("ERROR writing to socket");
+			 
+			 continue; 
+			 
+			 //THIS FOLLOWING STUFF IS IRRELEVANT?
 			 newSplitSocFD = accept(splitSockFD, 
                (struct sockaddr *) &splitCli_addr, &splitClilen);
 				if (newSplitSocFD < 0) 
 				error("ERROR on new accept");
 			close(newSplitSocFD);
-			continue; 
+			
 		 }
 		 //accept new connection
          newSplitSocFD = accept(splitSockFD, 
@@ -185,7 +193,7 @@ void dostuff (int sock)
 	   ///printf("S: PLAIN?: %s", buffer);
 	   
 	   if(buffer[0] == 'd'){
-		   printf("S: done? %s", buffer);
+		   ///printf("S: done? %s", buffer);
 		   doneReading = 1;
 	   }else{
 		   
@@ -199,7 +207,7 @@ void dostuff (int sock)
 	   ///printf("S: KEY?: %s", buffer);
 	   
 	   if(buffer[0] == 'd'){
-		   printf("S: done? %s", buffer);
+		   ///printf("S: done? %s", buffer);
 		   doneReading = 1;
 	   }
 	   
