@@ -1,9 +1,14 @@
-/*************************************************************
- * Connects to otp_enc_d and sends a keyfile and a plaintext file
- * receives cypher.
- * USAGE:otp_dec plaintext key port
- * BY: Konstantin Yakovenko
- * **********************************************************/
+/********************************************************
+ * otp_dec is a client that attempts to connect to 
+ * otp_dec_d on a specified port and sends over a KEY and 
+ * CYPHERTEXT that are then combined
+ * into PLAINTEXT and returned to the client.
+ * USE: otp_dec CYPHERTEXTFILE KEYFILE PORT
+ * EXAMPLE: otp_dec myCypherFile myKeyFile 35555
+ * WRITTEN BY: Konstantin Yakovenko
+ * Based on the sample client/server from: 
+ * http://www.linuxhowtos.org/C_C++/socket.htm
+ * ******************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,15 +31,20 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     struct hostent *server;
 	
-    char buffer[256];
+	//somewhat arbitrary size. Large enough to satisfy our speed
+    //requirements, doesn't go over int size.
+    char buffer[50001];
+    //check that the number of arguments is proper
     if (argc < 4) {
        fprintf(stderr,"usage %s plaintext key port\n", argv[0]);
        exit(0);
     }
+    
+    //get the PORT to connect to
     portno = atoi(argv[3]);
     
     //open and check files
-     //open file to read
+    //open file to read
     int bytesRead = 0;
     FILE* inFile = fopen(argv[1], "r");
     if(inFile == NULL){
@@ -60,6 +70,7 @@ int main(int argc, char *argv[])
 	bytesKey = ftell( keyFile );
 	rewind( keyFile );
 	
+	//nope the f out if the key is not long enough
 	if(bytesRead > bytesKey){
 		perror("KEY is not long enough...");
 		//close files
@@ -68,6 +79,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	
+	//reset to make sure no random bleedover happens
 	bytesRead = 0;
 	bytesKey = 0;
     
@@ -75,39 +87,47 @@ int main(int argc, char *argv[])
     
     
     //setup the first connection
+    //this is the connection straight to the server
+    //if the server likes us we'll take it to a different port
+    //for some special one on one time...
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
         error("ERROR opening socket");
     
-    //server = gethostbyname(argv[1]);
+    //apparently we are doing this only on localhost
+	//as per spec
     server = gethostbyname("localhost");
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
+    
+    //reset memory. maybe not really necessary but helps isolate problems 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, 
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
-    serv_addr.sin_port = htons(portno);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR connecting");
+    serv_addr.sin_port = htons(portno); //htons() converts to network bit order
+    
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){ 
+        fprintf(stderr,"ERROR, can't connect to this port\n");
+        exit(2); //as per spec.
+	}
 	///printf("C:connected....\n");
         
-    //send 'enc' command to make sure that enc.client cand connect to dec.server
-    //fgets(buffer,255,stdin);
+    //send 'dec' command to make sure that decc.client can't connect to enc.server
     n = write(sockfd,"dec",3);
     if (n < 0) 
          error("ERROR writing to socket");
-    bzero(buffer,256);
-    n = read(sockfd,buffer,255);
+    bzero(buffer,50001);
+    n = read(sockfd,buffer,50000);
     if (n < 0) 
          error("ERROR reading from socket");
     
-    //if rejected quit.     
+    //if rejected, quit.     
     if (buffer[0] == 'x'){
-		perror("C: can't connect to otp_enc_d");
+		perror("ERROR: otp_dec cannot use otp_enc_d");
 		exit(1);
 	}
          
@@ -119,7 +139,8 @@ int main(int argc, char *argv[])
     ///printf("New port int: %i\n", splitPort);
     
     //connect to the new port on the new process
-    //THIS MIGHT BE UNNECESSARY
+    //resetupping most of the old stuff
+    //THIS MIGHT BE UNNECESSARY, but clean slate and stuff.
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
         error("ERROR opening new socket");
@@ -129,46 +150,24 @@ int main(int argc, char *argv[])
         exit(0);
     }
     
+    //reset memory. maybe not really necessary but helps isolate problems
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, 
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
-    serv_addr.sin_port = htons(splitPort);
+    serv_addr.sin_port = htons(splitPort); //htons() converts to network bit order
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
-    /*printf("Please enter the second message: ");
-    bzero(buffer,256);
-    fgets(buffer,255,stdin);
-    n = write(sockfd,buffer,strlen(buffer));
-    if (n < 0) 
-         error("ERROR writing to socket");
-    bzero(buffer,256);
-    n = read(sockfd,buffer,255);
-    if (n < 0) 
-         error("ERROR reading from socket");
     
-    //return msg
-    printf("Cli Received:%s\n",buffer); */
-    
-    /////////////////////////Send For Encryption//////////////////
-    
-    
-   
+    /////////////////////////Send For Decryption//////////////////
 	
-	//open CYPHER to write
-	//ERROR Do we need to clear/initiate this file prior
-	//to jumping into the loop?
-	int bytesCypher = 0;
-    ///FILE* cypherFile = fopen("cypherfile", "a");
-    ///if(cypherFile == NULL){
-		///perror("Can't open CYPHER file");
-		///exit(1);
-	///}
+	//keep track of PLAINTEXT bytes we get back.
+	int bytesReturn = 0;
 	
-	//read PLAINTEXT in sections
-		bzero(buffer,256);
-		bytesRead = fread(buffer, 1, 255, inFile);
+	//read CYPHER in sections
+		bzero(buffer,50001);
+		bytesRead = fread(buffer, 1, 50000, inFile);
 		
     do{
 		//to cut off the trailing newline;
@@ -177,50 +176,48 @@ int main(int argc, char *argv[])
 			bytesRead--;
 		}
 		
-		//send the read line
+		//send the read CYPHER line
 		///printf("C:Read:%s\n",buffer);
 		n = write(sockfd,buffer,strlen(buffer));
 		if (n < 0) 
          error("ERROR writing to socket");
          
-         
-         
          //read KEY in sections
-		bzero(buffer,256);
+		bzero(buffer,50001);
 		bytesKey = fread(buffer, 1, bytesRead, keyFile);
 		
 		//on shorter tasks server needs to catchup.
-		//sleep(1);
-		//100 not enough
-		usleep(300);//is in MICRO sec so x1000 to get MILLI sec
+		//sleep(1); too much
+		//usleep(100), not enough
+		usleep(10000);//is in MICRO sec so x1000 to get MILLI sec
 		
-         //send the key line
+        //send the KEY line
 		///printf("C:Key:%s\n",buffer);
 		n = write(sockfd,buffer,strlen(buffer));
 		if (n < 0) 
          error("ERROR writing to socket");
         
-        //read encoded feedback
-        bzero(buffer,256);
-		n = read(sockfd,buffer,255);
+        //read encoded feedback aka decoded PLAINTEXT
+        bzero(buffer,50001);
+		n = read(sockfd,buffer,50000);
 		if (n < 0) 
          error("ERROR reading from socket");
 	
 		///printf("C:Encoded:%s\n",buffer);
 		//write CYPHER to file of OUT
 		///bytesCypher = fprintf(cypherFile,"%s",buffer);
-		bytesCypher = fprintf(stdout,"%s",buffer);
+		bytesReturn = fprintf(stdout,"%s",buffer);
 		
-		//get next part
-		bzero(buffer,256);
-		bytesRead = fread(buffer, 1, 255, inFile);
+		//get next part if there is one
+		bzero(buffer,50001);
+		bytesRead = fread(buffer, 1, 50000, inFile);
 	}
 	while(bytesRead > 0);
 	
-	 bytesCypher = fprintf(stdout,"\n");   
+	//finish close off the file or stream
+	 bytesReturn = fprintf(stdout,"\n");   
 	
-	//printf("done.\n");
-	//send that we are done
+	//send that we are done sending shit
 	n = write(sockfd,"done",4);
 	if (n < 0) 
 	 error("ERROR writing to socket");
@@ -228,7 +225,6 @@ int main(int argc, char *argv[])
     //close files
     fclose(inFile);
     fclose(keyFile);
-    ///fclose(cypherFile);
     //close connection
     close(sockfd);
     
