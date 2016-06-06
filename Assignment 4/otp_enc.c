@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 	
 	//somewhat arbitrary size. Large enough to satisfy our speed
     //requirements, doesn't go over int size.
-    char buffer[50001];
+    char buffer[25001];
     //check that the number of arguments is proper
     if (argc < 4) {
        fprintf(stderr,"usage %s plaintext key port\n", argv[0]);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	
 	//check that there are no stupid unconvertable chars
 	do{
-		bytesRead = fread(buffer, 1, 50000, inFile);
+		bytesRead = fread(buffer, 1, 25000, inFile);
 		for(n = 0; n < (bytesRead - 1); n++){
 			if(!isalpha(buffer[n]) && !isspace(buffer[n])){
 			fprintf(stderr,"ERROR: %s contains unconvertable character\n", argv[1]);
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	}while(bytesRead > 0);
 	
 	//clear buffer to prevent any wacky errors.
-	bzero(buffer,50001);
+	bzero(buffer,25001);
 
 	
 	//open key to read
@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
     n = write(sockfd,"enc",3);
     if (n < 0) 
          error("ERROR writing to socket");
-    bzero(buffer,50001);
-    n = read(sockfd,buffer,50000);
+    bzero(buffer,25001);
+    n = read(sockfd,buffer,25000);
     if (n < 0) 
          error("ERROR reading from socket");
          
@@ -183,8 +183,8 @@ int main(int argc, char *argv[])
 	int bytesCypher = 0;
 	
 	//read PLAINTEXT in sections
-		bzero(buffer,50001);
-		bytesRead = fread(buffer, 1, 50000, inFile);
+		bzero(buffer,25001);
+		bytesRead = fread(buffer, 1, 25000, inFile);
 		
     do{
 		//to cut off the trailing newline;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
          error("ERROR writing to socket");
         
          //read KEY in sections
-		bzero(buffer,50001);
+		bzero(buffer,25001);
 		bytesKey = fread(buffer, 1, bytesRead, keyFile);
 		
 		//on shorter tasks server needs to catchup.
@@ -215,8 +215,8 @@ int main(int argc, char *argv[])
          error("ERROR writing to socket");
         
         //read encoded feedback aka CYPHER
-        bzero(buffer,50001);
-		n = read(sockfd,buffer,50000);
+        bzero(buffer,25001);
+		n = read(sockfd,buffer,25000);
 		if (n < 0) 
          error("ERROR reading from socket");
 	
@@ -226,8 +226,8 @@ int main(int argc, char *argv[])
 		bytesCypher = fprintf(stdout,"%s",buffer);
 		
 		//get next part if there is one
-		bzero(buffer,50001);
-		bytesRead = fread(buffer, 1, 50000, inFile);
+		bzero(buffer,25001);
+		bytesRead = fread(buffer, 1, 25000, inFile);
 	}
 	while(bytesRead > 0);
 	

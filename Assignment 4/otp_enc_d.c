@@ -131,10 +131,10 @@ int main(int argc, char *argv[])
          
          //somewhat arbitrary size. Large enough to satisfy our speed
          //requirements, doesn't go over int size.
-		 char buffer[50001];
+		 char buffer[25001];
 			  
-		 bzero(buffer,50001);
-		 n = read(newsockfd,buffer, 50000);
+		 bzero(buffer,25001);
+		 n = read(newsockfd,buffer, 25000);
 		 if (n < 0) error("ERROR reading from socket");
 		 ///printf("S:Here is the message: %s\n",buffer);
 		 
@@ -201,18 +201,18 @@ int main(int argc, char *argv[])
 //this is where tha main communication and encoding happens
 void processEncCon (int sock)
 {
-	char key[50001];
+	char key[25001];
 	int n;
-	char buffer[50001];
-	char plaintext[50001];
+	char buffer[25001];
+	char plaintext[25001];
    
    //receiving PLAINTEXT then KEY the  send off CYPHER
    int doneReading = 0;
    do{
 	   //ERROR Add error check by length of shit taken in.
 	   //read PLAINTEXT or 'd' for DONE...
-	   bzero(buffer,50001);
-	   n = read(sock,buffer,50000);
+	   bzero(buffer,25001);
+	   n = read(sock,buffer,25000);
 	   if (n < 0) error("ERROR reading from socket");
 	   
 	   ///printf("S: PLAIN?: %s", buffer);
@@ -225,11 +225,11 @@ void processEncCon (int sock)
 	   }else{
 		//put received PLAINTEXT from buffer[] into plaintext[]
 		//for processing   
-		strncpy(plaintext, buffer, 50001);
+		strncpy(plaintext, buffer, 25001);
 	   
 	   //read KEY
-	   bzero(buffer,50001);
-	   n = read(sock,buffer,50000);
+	   bzero(buffer,25001);
+	   n = read(sock,buffer,25000);
 	   if (n < 0) error("ERROR reading from socket");
 	   
 	   ///printf("S: KEY?: %s", buffer);
@@ -242,7 +242,7 @@ void processEncCon (int sock)
 	   }
 	   //put received KEY from buffer[] into key[]
 	   //for processing   
-	   strncpy(key, buffer, 50001);
+	   strncpy(key, buffer, 25001);
 		}	   
 	   
 	   //ENCODE PLAINTEXT + KEY//////////////////////////
@@ -285,8 +285,8 @@ void processEncCon (int sock)
 	   n = write(sock,buffer,strlen(buffer));
 	   if (n < 0) error("ERROR reading from socket");
 	   
-	   bzero(key,50001);
-	   bzero(plaintext,50001);
+	   bzero(key,25001);
+	   bzero(plaintext,25001);
    }
    while(!doneReading);
    
