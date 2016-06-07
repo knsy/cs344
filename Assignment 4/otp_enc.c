@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     int bytesRead = 0;
     FILE* inFile = fopen(argv[1], "r");
     if(inFile == NULL){
-		perror("Can't open IN file");
+		perror("ERROR: Can't open IN file");
 		exit(1);
 	}
 	
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	int bytesKey = 0;
     FILE* keyFile = fopen(argv[2], "r");
     if(keyFile == NULL){
-		perror("Can't open KEY file");
+		perror("ERROR: Can't open KEY file");
 		exit(1);
 	}
 		
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	
 	//nope the f out if the key is not long enough
 	if(bytesRead > bytesKey){
-		perror("KEY is not long enough...");
+		perror("ERROR: KEY is not long enough...");
 		//close files
 		fclose(inFile);
 		fclose(keyFile);
