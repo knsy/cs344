@@ -18,3 +18,6 @@ IO gets redirected if need be, then a new process gets exec'd with the parameter
 
 # Assignment 4
 *Summary:* An implementation of One Time Pad encryption. keygen generates a random key of specified length from 27 characters(A-Z and Space). Then otp_enc_d sever is launched in the background and creates a socket and listens on a provided port. otp_enc client then connects, gets pushed off to a new port in a new process by otp_enc_d to keep the server open for more connections. otp_enc then transmits the keyfile and plaintext to otp_enc_d to get encoded and gets back cyphertext. otp_dec_d and otp_dec are the reverse but function pretty much the same.
+
+# Assignment 5
+*Summary:* Writes files, generates random letters within a range, does math. The point was to see if we could pick up the basics of a new language without any instruction. The language being Python.
